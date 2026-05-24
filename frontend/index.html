@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three-Tier Todo App</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: 'Segoe UI', sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 40px 16px;
+      }
+      .container { width: 100%; max-width: 560px; }
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        background: linear-gradient(90deg, #6366f1, #a855f7);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .subtitle { color: #64748b; margin-bottom: 32px; font-size: 0.9rem; }
+      .input-row { display: flex; gap: 10px; margin-bottom: 24px; }
+      input {
+        flex: 1;
+        padding: 12px 16px;
+        border-radius: 10px;
+        border: 1px solid #1e293b;
+        background: #1e293b;
+        color: #e2e8f0;
+        font-size: 1rem;
+        outline: none;
+        transition: border 0.2s;
+      }
+      input:focus { border-color: #6366f1; }
+      button {
+        padding: 12px 20px;
+        border-radius: 10px;
+        border: none;
+        background: #6366f1;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      button:hover { background: #4f46e5; }
+      .todo-list { display: flex; flex-direction: column; gap: 10px; }
+      .todo-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 16px;
+        background: #1e293b;
+        border-radius: 12px;
+        border: 1px solid #334155;
+        transition: border 0.2s;
+      }
+      .todo-item:hover { border-color: #6366f1; }
+      .todo-item.done .todo-text {
+        text-decoration: line-through;
+        color: #475569;
+      }
+      .check-btn {
+        width: 24px; height: 24px;
+        border-radius: 50%;
+        background: transparent;
+        border: 2px solid #475569;
+        padding: 0;
+        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s;
+      }
+      .check-btn.checked { background: #22c55e; border-color: #22c55e; }
+      .check-btn:hover { border-color: #22c55e; }
+      .todo-text { flex: 1; font-size: 0.95rem; }
+      .del-btn {
+        background: transparent;
+        color: #ef4444;
+        padding: 4px 8px;
+        font-size: 1.1rem;
+        border-radius: 6px;
+      }
+      .del-btn:hover { background: #450a0a; }
+      .empty { text-align: center; color: #475569; padding: 40px 0; }
+      .tag {
+        font-size: 0.7rem;
+        background: #0f172a;
+        border: 1px solid #334155;
+        color: #64748b;
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-bottom: 24px;
+        display: inline-block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Todo App</h1>
+      <p class="subtitle">Three-Tier Architecture · Node + MongoDB · Kubernetes</p>
+      <span class="tag" id="api-tag">API: /api/todos</span>
+
+      <div class="input-row">
+        <input id="todo-input" type="text" placeholder="Add a new task..." />
+        <button onclick="addTodo()">Add</button>
+      </div>
+
+      <div class="todo-list" id="todo-list">
+        <div class="empty">Loading...</div>
+      </div>
+    </div>
+
+    <script>
+      const API = "/api/todos";
+
+      async function fetchTodos() {
+        try {
+          const res = await fetch(API);
+          const todos = await res.json();
+          render(todos);
+        } catch {
+          document.getElementById("todo-list").innerHTML =
+            '<div class="empty">⚠️ Could not connect to backend</div>';
+        }
+      }
+
+      function render(todos) {
+        const list = document.getElementById("todo-list");
+        if (!todos.length) {
+          list.innerHTML = '<div class="empty">No todos yet. Add one above!</div>';
+          return;
+        }
+        list.innerHTML = todos.map(t => `
+          <div class="todo-item ${t.done ? 'done' : ''}" id="item-${t._id}">
+            <button class="check-btn ${t.done ? 'checked' : ''}" onclick="toggle('${t._id}')">
+              ${t.done ? '✓' : ''}
+            </button>
+            <span class="todo-text">${escapeHtml(t.text)}</span>
+            <button class="del-btn" onclick="deleteTodo('${t._id}')">✕</button>
+          </div>
+        `).join('');
+      }
+
+      async function addTodo() {
+        const input = document.getElementById("todo-input");
+        const text = input.value.trim();
+        if (!text) return;
+        await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+        input.value = "";
+        fetchTodos();
+      }
+
+      async function toggle(id) {
+        await fetch(`${API}/${id}`, { method: "PATCH" });
+        fetchTodos();
+      }
+
+      async function deleteTodo(id) {
+        await fetch(`${API}/${id}`, { method: "DELETE" });
+        fetchTodos();
+      }
+
+      function escapeHtml(str) {
+        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+
+      document.getElementById("todo-input").addEventListener("keydown", e => {
+        if (e.key === "Enter") addTodo();
+      });
+
+      fetchTodos();
+    </script>
+  </body>
+</html>
